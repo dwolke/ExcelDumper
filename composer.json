@@ -1,0 +1,30 @@
+{
+    "name": "dwolke/excel-dumper",
+    "description": "Excel Dateien (xls) Dateien lesen",
+    "license": "MIT",
+    "type": "library",
+    "keywords": [
+        "excel",
+        "spreadsheet",
+        "reader",
+        "importer"
+    ],
+    "homepage": "http://dw-labs.de",
+    "authors": [
+        {
+            "name": "Daniel Wolkenhauer",
+            "email": "info@dw-labs.de",
+            "homepage": "http://dw-labs.de",
+            "role": "Developer"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.4"
+    },
+    "autoload": {
+        "psr-0": {
+            "ExcelDumper": "src/"
+        }
+    }
+}
