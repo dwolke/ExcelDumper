@@ -1,2 +1,2 @@
 # ExcelDumper
-Parses Excel-Sheets and dumps them out
+Parses Excel-Sheets (xls) and dumps them out

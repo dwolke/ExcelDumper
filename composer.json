@@ -1,6 +1,6 @@
 {
     "name": "dwolke/excel-dumper",
-    "description": "Excel Dateien (xls) Dateien lesen",
+    "description": "Parses Excel-Sheets (xls) and dumps them out",
     "license": "MIT",
     "type": "library",
     "keywords": [
