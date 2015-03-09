@@ -10,6 +10,8 @@
 
 namespace ExcelDumper;
 
+use ExcelDumper\XlsParser;
+
 /**
 * 
 */
@@ -26,21 +28,26 @@ class XlsReader
   /**
    * Konstruktor
    *
-   * @param string $fileName Name der Exceldatei
+   * @param string $file Name der Exceldatei
    * @param bool $storeExtendedInfo unklar: erweiterte Infos speichern ???
    * @param string $outputEncoding unklar: Zeichensatz für Output ???
    */
-  public function __construct($fileName = '', $storeExtendedInfo = true, $outputEncoding = '') {
+  public function __construct($file = '') {
     
-    if ($fileName === '') {
+    if ($file === '') {
       throw new \RuntimeException('Dateiname darf nicht leer sein.', 1);
-      
     }
 
-    $this->excelDocument = 'ein Exceldocument';
+    if (!file_exists($file)) {
+      throw new \RuntimeException('Die angegebene Datei wurde nicht gefunden.', 1);
+    }
 
-    // $this->excelDocument = new NewClass($fileName);
-    // $this->sheets = $this->excelDocument->getExcelSheets();
+    mb_internal_encoding('8bit');
+
+    //$this->excelDocument = 'ein Exceldocument';
+
+    $this->excelDocument = new XlsParser($file);
+    // $this->sheets = $this->excelDocument->getSheets();
 
   }
 
