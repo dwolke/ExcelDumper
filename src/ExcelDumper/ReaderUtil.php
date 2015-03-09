@@ -12,16 +12,15 @@ namespace ExcelDumper;
 
 
 /**
-* 
+* Helpers
 */
 class ReaderUtil
 {
   
   function __construct()
   {
-    # code...
-  }
 
+  }
 
   public static function getInt4d($data, $pos)
   {
@@ -40,7 +39,6 @@ class ReaderUtil
   {
     return ord($data[$pos]) | ord($data[$pos + 1]) << 8;
   }
-
 
   public static function GetIEEE754($rknum)
   {
@@ -70,11 +68,24 @@ class ReaderUtil
 
   }
 
+  public static function gmGetDate($ts = null) {
 
+    $k = array(
+      'seconds',
+      'minutes',
+      'hours',
+      'mday',
+      'wday',
+      'mon',
+      'year',
+      'yday',
+      'weekday',
+      'month',
+      0
+    );
 
+    return array_combine($k, explode(':', gmdate('s:i:G:j:w:n:Y:z:l:F:U', is_null($ts) ? time() : $ts)));
 
-
+  }
 
 }
-
-

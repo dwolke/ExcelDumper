@@ -2,6 +2,8 @@
 /**
  * ExcelDumper (http://www.dw-labs.de/ExcelDumper)
  *
+ * based on php-excel-reader2 (https://code.google.com/p/php-excel-reader2/)
+ *
  * @author     Daniel Wolkenhauer <dw@dwolke.de>
  * @copyright  Copyright (c) 2005-2015 Daniel Wolkenhauer
  * @link       http://github.com/dwolke/ExcelDumper
@@ -35,7 +37,6 @@ class OleReader
   const START_BLOCK_POS = 0x74;
   const SIZE_POS = 0x78;
 
-
   protected $fileData;
 
   protected $numBigBlockDepotBlocks = null;
@@ -50,11 +51,6 @@ class OleReader
   protected $props = array();
   protected $wrkbook = null;
   protected $rootEntry = null;
-
-  //protected $entry = null;
-
-
-
 
   
   public function __construct()
@@ -257,7 +253,5 @@ class OleReader
     }
 
   }
-
-
 
 }

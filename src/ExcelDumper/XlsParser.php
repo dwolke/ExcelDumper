@@ -2,6 +2,8 @@
 /**
  * ExcelDumper (http://www.dw-labs.de/ExcelDumper)
  *
+ * based on php-excel-reader2 (https://code.google.com/p/php-excel-reader2/)
+ *
  * @author     Daniel Wolkenhauer <dw@dwolke.de>
  * @copyright  Copyright (c) 2005-2015 Daniel Wolkenhauer
  * @link       http://github.com/dwolke/ExcelDumper
@@ -80,9 +82,13 @@ class XlsParser
   protected $boundsheets = null;
   protected $sn = null;
   protected $sheets = array();
+
   protected $sst = array();
+
   protected $formatRecords = null;
   protected $xfRecords = null;
+
+  protected $defaultFormat = self::SPREADSHEET_EXCEL_READER_DEF_NUM_FORMAT;
 
   protected $colInfo = array();
   protected $rowInfo = array();
@@ -155,6 +161,12 @@ class XlsParser
     
     $this->read($file);
     
+  }
+
+
+  public function getSheets()
+  {
+    return $this->sheets;
   }
 
   /**
@@ -930,11 +942,102 @@ class XlsParser
   private function createNumber($spos)
   {
 
+    $rknumhigh = ReaderUtil::getInt4d($this->workbookData, $spos + 10);
+    $rknumlow = ReaderUtil::getInt4d( $this->workbookData, $spos + 6);
+
+    $sign = ($rknumhigh & 0x80000000) >> 31;
+    $exp = ($rknumhigh & 0x7ff00000) >> 20;
+
+    $mantissa = (0x100000 | ($rknumhigh & 0x000fffff));
+    $mantissalow1 = ($rknumlow & 0x80000000) >> 31;
+    $mantissalow2 = ($rknumlow & 0x7fffffff);
+
+    $value = $mantissa / pow(2, (20 - ($exp - 1023)));
+
+    if ($mantissalow1 != 0) {
+      $value += 1 / pow(2, (21 - ($exp - 1023)));
+    }
+
+    $value += $mantissalow2 / pow(2, (52 - ($exp - 1023)));
+
+    if ($sign) {
+      $value = - 1 * $value;
+    }
+
+    return $value;
+
   }
 
 
   private function getCellDetails($spos, $numValue, $column)
   {
+
+    $xfindex = ord($this->workbookData[$spos + 4]) | ord($this->workbookData[$spos + 5]) << 8;
+    $xfrecord = $this->xfRecords[$xfindex];
+    $type = $xfrecord['type'];
+
+    $format = $xfrecord['format'];
+    $formatIndex = $xfrecord['formatIndex'];
+    $rectype = '';
+    $string = '';
+    $raw = '';
+    
+    if (isset($this->_columnsFormat[$column + 1])) {
+      $format = $this->_columnsFormat[$column + 1];
+    }
+
+    if ($type == 'date') {
+
+      $rectype = 'date';
+
+      // Convert numeric value into a date
+      $utcDays = floor($numValue - ($this->nineteenFour ? self::SPREADSHEET_EXCEL_READER_UTCOFFSETDAYS1904 : self::SPREADSHEET_EXCEL_READER_UTCOFFSETDAYS));
+      $utcValue = ($utcDays) * self::SPREADSHEET_EXCEL_READER_MSINADAY;
+      $dateinfo = ReaderUtil::gmGetDate($utcValue);
+      
+      $raw = $numValue;
+      $fractionalDay = $numValue - floor($numValue) + .0000001; // The .0000001 is to fix for php/excel fractional diffs
+
+      $totalseconds = floor(self::SPREADSHEET_EXCEL_READER_MSINADAY * $fractionalDay);
+      $secs = $totalseconds % 60;
+      $totalseconds -= $secs;
+      $hours = floor($totalseconds / (60 * 60));
+      $mins = floor($totalseconds / 60) % 60;
+
+      $fmt = 'Y-m-d H:i:s';
+      $string = date($fmt, mktime ($hours, $mins, $secs, $dateinfo["mon"], $dateinfo["mday"], $dateinfo["year"]));
+
+    } elseif ($type == 'number') {
+
+      $rectype = 'number';
+      $formatted = $this->formatValue($format, $numValue, $formatIndex);
+      $string = $formatted['string'];
+
+      $raw = $numValue;
+
+    } else {
+
+      if ($format == '') {
+        $format = $this->defaultFormat;
+      }
+
+      $rectype = 'unknown';
+      $formatted = $this->formatValue($format, $numValue, $formatIndex);
+      $string = $formatted['string'];
+      $raw = $numValue;
+
+    }
+    
+    $ret = array (
+      'string' => $string,
+      'raw' => $raw,
+      'rectype' => $rectype,
+      'format' => $format,
+      'formatIndex' => $formatIndex,
+      'xfIndex' => $xfindex
+    );
+
+    return $ret;
 
   }
 
@@ -942,8 +1045,97 @@ class XlsParser
   private function addCell($row, $col, $string, $info = null)
   {
 
+    $this->sheets[$this->sn]['maxrow'] = max($this->sheets[$this->sn]['maxrow'], $row + $this->rowOffset);
+    $this->sheets[$this->sn]['maxcol'] = max($this->sheets[$this->sn]['maxcol'], $col + $this->colOffset );
+    $this->sheets[$this->sn]['cells'][$row + $this->rowOffset][$col + $this->colOffset] = $string;
+
+    if ($this->storeExtendedInfo && $info) {
+
+      foreach ($info as $key => $val) {
+        $this->sheets[$this->sn]['cellsInfo'][$row + $this->rowOffset][$col + $this->colOffset][$key] = $val;
+      }
+
+    }
+
   }
 
+
+  private function formatValue($format, $num, $f)
+  {
+
+    // 49==TEXT format
+    // http://code.google.com/p/php-excel-reader/issues/detail?id=7
+    if ((!$f && $format == "%s") || ($f == 49) || ($format == "GENERAL")) {
+      return array('string' => $num);
+    }
+
+    // Custom pattern can be POSITIVE;NEGATIVE;ZERO
+    // The "text" option as 4th parameter is not handled
+    $parts = explode(";", $format);
+    $pattern = $parts[0];
+
+    // Negative pattern
+    if (count($parts) > 2 && $num == 0) {
+      $pattern = $parts[2];
+    }
+
+    // Zero pattern
+    if (count($parts) > 1 && $num < 0) {
+      $pattern = $parts[1];
+      $num = abs($num);
+    }
+    
+    $matches = array();
+
+    // In Excel formats, "_" is used to add spacing, which we can't do in HTML
+    $pattern = preg_replace("/_./", "", $pattern);
+
+    // Some non-number characters are escaped with \, which we don't need
+    $pattern = preg_replace("/\\\/", "", $pattern);
+
+    // Some non-number strings are quoted, so we'll get rid of the quotes
+    $pattern = preg_replace("/\"/", "", $pattern);
+
+    // TEMPORARY - Convert # to 0
+    $pattern = preg_replace("/\#/", "0", $pattern);
+
+    // Find out if we need comma formatting
+    $has_commas = preg_match("/,/", $pattern);
+
+    if ($has_commas) {
+      $pattern = preg_replace("/,/", "", $pattern);
+    }
+
+    // Handle Percentages
+    if (preg_match("/\d(\%)([^\%]|$)/", $pattern, $matches)) {
+      $num = $num * 100;
+      $pattern = preg_replace("/(\d)(\%)([^\%]|$)/", "$1%$3", $pattern);
+    }
+
+    // Handle the number itself
+    $number_regex = "/(\d+)(\.?)(\d*)/";
+
+    if (preg_match($number_regex, $pattern, $matches)) {
+      $left = $matches[1];
+      $dec = $matches[2];
+      $right = $matches[3];
+
+      if ($has_commas) {
+        $formatted = number_format($num, strlen($right));
+      } else {
+        $sprintf_pattern = "%1." . strlen($right) . "f";
+        $formatted = sprintf($sprintf_pattern, $num);
+      }
+
+      $pattern = preg_replace($number_regex, $formatted, $pattern);
+
+    }
+
+    return array(
+      'string' => $pattern,
+    );
+
+  }
 
 
   private function encodeUtf16($string)

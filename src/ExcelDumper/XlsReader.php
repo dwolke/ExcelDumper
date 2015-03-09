@@ -47,7 +47,9 @@ class XlsReader
     //$this->excelDocument = 'ein Exceldocument';
 
     $this->excelDocument = new XlsParser($file);
-    // $this->sheets = $this->excelDocument->getSheets();
+    $this->sheets = $this->excelDocument->getSheets();
+
+    //var_dump($this->sheets[0]);
 
   }
 
@@ -58,12 +60,12 @@ class XlsReader
 
   public function rowCount($sheet = 0)
   {
-    // code
+    return $this->sheets[$sheet]['numRows'];
   }
 
   public function columnCount($sheet = 0)
   {
-
+    return $this->sheets[$sheet]['numCols'];
   }
 
   public function getFileInfo()
@@ -71,14 +73,37 @@ class XlsReader
     // code
   }
 
-  public function dump()
+  public function dump($sheet = 0)
   {
-    // code
+    
+    $ret = [];
+
+    for ($row = 1; $row <= $this->rowCount($sheet); $row ++) {
+
+      $columns = null;
+
+      for ($col = 1; $col <= $this->columnCount($sheet); $col ++) {
+        $columns[$col] = $this->val($row, $col, $sheet);
+      }
+      
+      $ret[$row] = $columns;
+
+    }
+
+    return $ret;
   }
 
   public function val($row, $col, $sheet = 0)
   {
-    // code
+
+    //$col = $this->getCol ($col);
+    
+    if (array_key_exists($row, $this->sheets[$sheet]['cells']) && array_key_exists($col, $this->sheets[$sheet]['cells'][$row])) {
+      return $this->sheets[$sheet]['cells'][$row][$col];
+    }
+
+    return '';
+
   }
 
   public function value($row, $col, $sheet = 0)

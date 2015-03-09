@@ -14,13 +14,7 @@ if (file_exists('../vendor/autoload.php')) {
   require_once __DIR__ . '/../vendor/autoload.php'; 
 }
 
-if (!class_exists('ExcelDumper\XlsReader')) {
-  die('Klasse nicht gefunden. Run `php composer.phar install`.');
-}
-
 use ExcelDumper\XlsReader;
-
-
 
 try {
   $data = new XlsReader('katalog.xls');
@@ -28,8 +22,25 @@ try {
   die($e->getMessage());
 }
 
-
-var_dump($data, $data->sheetCount());
-
+//echo mb_internal_encoding();
+//var_dump($data->dump());
 
 ?>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>ExcelDumper - Ex1</title>
+</head>
+<body>
+  <table>
+    <?php foreach ($data->dump() as $rows => $row) { ?>
+    <tr>
+      <?php foreach ($row as $col) { ?>
+        <td><?php echo $col; ?></td>
+      <?php } ?>
+    </tr>
+    <?php } ?>
+  </table>
+</body>
+</html>
